@@ -1,0 +1,12 @@
+#ifndef LEDARKSIDE_GLOBAL_H
+#define LEDARKSIDE_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(LEDARKSIDE_LIBRARY)
+#  define LEDARKSIDESHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define LEDARKSIDESHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // LEDARKSIDE_GLOBAL_H
