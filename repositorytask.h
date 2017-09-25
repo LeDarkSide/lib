@@ -6,7 +6,7 @@
 #include "repository.h"
 #include "packagetask.h"
 
-class LEDARKSIDESHARED_EXPORT InstallRepository : public Task
+class LEDARKSIDESHARED_EXPORT InstallRepository : public ProcessTask
 {
     Q_OBJECT
 public:

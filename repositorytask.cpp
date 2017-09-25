@@ -1,5 +1,5 @@
 #include "repositorytask.h"
-#include "settings.h"
+#include "ledarkside.h"
 #include <QProcess>
 #include <QRegularExpression>
 #include <QDebug>
@@ -7,7 +7,7 @@
 #include <QCoreApplication>
 
 InstallRepository::InstallRepository(QObject *parent)
-    : Task(parent)
+    : ProcessTask(parent)
 {
 }
 
@@ -34,7 +34,7 @@ void InstallRepository::startLocalDir(const Repository &repo)
         return;
     }
 
-    QString repoDir = Settings::repositories() + '/' + repo.name();
+    QString repoDir = repo.path();
     if (!QFile::exists(repoDir)) {
         bool result = QFile::link(repo.url(), repoDir);
         if(!result) {
@@ -46,19 +46,13 @@ void InstallRepository::startLocalDir(const Repository &repo)
 
 void InstallRepository::startGit(const Repository &repo)
 {
-    QProcess *proc = makeProcess();
-    proc->setProgram("git");
-    proc->setProcessChannelMode(QProcess::MergedChannels);
-    connect(proc, static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished),
-            this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
-        if (exitStatus != QProcess::NormalExit) {
-            error(tr("The process did not end normally; exit code: %1; program error messages: %2").arg(exitCode).arg(QString(proc->readAllStandardError())));
-            return;
-        }
+    m_process->setProgram("git");
+    m_process->setProcessChannelMode(QProcess::MergedChannels);
+    connect(this, &InstallRepository::processFinished, this, [this](int exitCode) {
         emit finished();
     });
-    connect(proc, &QProcess::readyRead, this, [this, proc]() {
-        QString line(proc->readAll().trimmed());
+    connect(m_process, &QProcess::readyRead, this, [this]() {
+        QString line(m_process->readAll().trimmed());
         QRegularExpression exp("\\d+(?=%)");
         auto it = exp.globalMatch(line);
         if (!it.hasNext())
@@ -72,8 +66,8 @@ void InstallRepository::startGit(const Repository &repo)
         }
     });
 
-    QString repoDir = Settings::repositories() + '/' + repo.name();
-    proc->setArguments(QStringList() << "clone" << "--progress" << repo.url() << repoDir);
+    QString repoDir = repo.path();
+    m_process->setArguments(QStringList() << "clone" << "--progress" << repo.url() << repoDir);
 
     QDir dir(repoDir + "/.git");
     if (dir.exists()) {
@@ -85,7 +79,7 @@ void InstallRepository::startGit(const Repository &repo)
         p.waitForFinished(3000);
         QString origin = p.readAll().trimmed();
         if (origin == repo.url()) {
-            proc->setArguments(QStringList() << "-C" << repoDir << "pull");
+            m_process->setArguments(QStringList() << "-C" << repoDir << "pull");
         } else {
             warning(tr("The current repository is corrupted, it will be deleted"));
             QDir d(repoDir);
@@ -93,7 +87,7 @@ void InstallRepository::startGit(const Repository &repo)
         }
     }
 
-    proc->start();
+    m_process->start();
 }
 
 ReadRepository::ReadRepository(QObject *parent)
@@ -103,7 +97,7 @@ ReadRepository::ReadRepository(QObject *parent)
 
 void ReadRepository::start(const Repository &repo)
 {
-    readDir(Settings::repositories() + '/' + repo.name());
+    readDir(repo.path());
 }
 
 void ReadRepository::readDir(const QString &path)

@@ -4,6 +4,8 @@
 #include "ledarkside_global.h"
 #include <QObject>
 #include <QProcess>
+#include <QUuid>
+#include <QVector>
 
 class LEDARKSIDESHARED_EXPORT Task : public QObject
 {
@@ -20,6 +22,7 @@ signals:
     void finished();
 
     void newLogMessage(QString message);
+    void newDebugMessage(QString message);
     void newWarningMessage(QString message);
     void newErrorMessage(QString message);
 
@@ -27,15 +30,36 @@ signals:
 
 protected:
     void log(const QString &log);
+    void debug(const QString &debug);
     void warning(const QString &warning);
     void error(const QString &error);
 
     void setProgress(const int progress);
 
-    QProcess *makeProcess();
+    void addSubTask(Task *subTask);
+    void addSubTask(Task &subTask, const QString &name);
+    void removeSubTask(Task *subTask);
 
 private:
+    QUuid m_id;
     int m_progress;
+    QVector<Task*> m_subTasks;
+
+    friend bool operator ==(const Task &l, const Task &r);
+    friend bool operator !=(const Task &l, const Task &r);
+};
+
+class LEDARKSIDESHARED_EXPORT ProcessTask : public Task
+{
+    Q_OBJECT
+public:
+    explicit ProcessTask(QObject *parent = Q_NULLPTR);
+
+signals:
+    void processFinished(int exitCode);
+
+protected:
+    QProcess *m_process;
 };
 
 #endif // TASK_H
